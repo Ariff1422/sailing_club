@@ -32,7 +32,7 @@ def solve_sailing_club(bookings: List[List[int]]):
         return [], 0
 
     # Part 1: Merge overlapping time slots
-    # Sort bookings by start time
+    # Sort bookings by start time to process them chronologically
     sorted_bookings = sorted(bookings, key=lambda x: x[0])
     
     merged_slots = []
@@ -41,30 +41,34 @@ def solve_sailing_club(bookings: List[List[int]]):
         
         for next_start, next_end in sorted_bookings[1:]:
             if next_start <= current_end:
-                # Overlap, merge the slots
+                # Overlap exists: extend the current merged interval
                 current_end = max(current_end, next_end)
             else:
-                # No overlap, add the merged slot and start a new one
+                # No overlap: the current merged interval is complete
                 merged_slots.append([current_start, current_end])
+                # Start a new merged interval with the next booking
                 current_start, current_end = next_start, next_end
         
-        # Add the last merged slot
+        # Add the very last merged slot
         merged_slots.append([current_start, current_end])
 
-    # Part 2: Find minimum number of boats needed
-    # Create a timeline of events (start and end times)
+    # Part 2: Find minimum number of boats needed using a sweep-line algorithm
+    # Create a list of events: a start event (+1) and an end event (-1) for each booking
     events = []
     for start, end in bookings:
-        events.append((start, 1))  # 1 for a boat becoming busy
-        events.append((end, -1))   # -1 for a boat becoming free
+        events.append((start, 1))  # +1 boat needed at the start of a booking
+        events.append((end, -1))   # -1 boat needed at the end of a booking
     
-    # Sort events by time. If times are equal, process start events before end events.
-    # This is crucial for cases like [1, 8] and [8, 10] where boat 1 becomes free and a new boat is needed at the same time.
-    events.sort(key=lambda x: (x[0], x[1]))
+    # Sort events by time. 
+    # For events at the same time, process start events (+1) before end events (-1)
+    # This is crucial for correctly handling bookings like [6, 10] and [10, 15]
+    # where the boat is freed just as another is needed.
+    events.sort(key=lambda x: (x[0], -x[1]))
     
     min_boats_needed = 0
     current_boats = 0
     
+    # Sweep through the timeline of events
     for _, event_type in events:
         current_boats += event_type
         min_boats_needed = max(min_boats_needed, current_boats)
@@ -90,8 +94,8 @@ async def submit_sailing_solutions(request_body: RequestBody):
         return ResponseBody(solutions=solutions)
     
     except Exception as e:
-        # This will catch any unexpected errors and return a 500 error
-        # to prevent your server from crashing.
+        # Catch unexpected errors and return a 500 error to prevent a crash.
+        # This is good practice for production APIs.
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
